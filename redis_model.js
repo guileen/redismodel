@@ -46,22 +46,30 @@
 //
 // foo.blob('text', leveldb_blob('foo'))
 var _ = require('dash5');
+var async = require('async');
 var all_models = {};
 
-var redisStorage = {
-    get: function(model_name, id, callback) {
-
-    }
-  , set: function(model_name, id, data, callback) {
-
-    }
-  , del: function(model_name, id, callback) {
-
+var redisStorage = function(redis) {
+    return {
+        get: function(model_name, id, callback) {
+            redis.hgetall(model_name + ':' + id, callback);
+        }
+      , set: function(model_name, id, data, callback) {
+            redis.hmset(model_name + ':' + id, data, callback);
+        }
+      , del: function(model_name, id, callback) {
+            redis.del(model_name + ':' + id, callback);
+        }
+      , exists: function(model_name, id, callback) {
+            redis.exists(model_name + ':' + id, callback);
+        }
     }
 }
 
-var redisIdFactory = function(model_name, callback) {
-    redis.incr('_meta:' + model_name, callback);
+var redisIdFactory = function(redis) {
+    return function(model_name, callback) {
+        redis.incr('_meta:' + model_name, callback);
+    }
 }
 
 function toScore(value) {
@@ -69,25 +77,6 @@ function toScore(value) {
         return value.getTime();
     }
     return Number(value) || 0;
-}
-
-function listIdByScore(key, rev, suffix, offset, limit, min, max, callback) {
-    if(!callback) {
-        if(typeof max == 'function') {
-            callback = max;
-            max = null;
-        } else if(typeof min == 'function') {
-            callback = min;
-            min = null;
-        }
-    }
-    if(min || max) {
-        if(!max) max = '+inf';
-        if(!min) min = '-inf';
-        redis[rev ? 'zrevrangebyscore' : 'zrangebyscore'](key + suffix, min, max, 'LIMIT', offset, limit, callback);
-    } else {
-        redis[rev ? 'zrevrange' : 'zrange'](key + suffix, offset, offset + limit, callback);
-    }
 }
 
 function RedisModel(model_name, _redis, idFactory, entityStore) {
@@ -98,14 +87,16 @@ function RedisModel(model_name, _redis, idFactory, entityStore) {
     var unique_fields = []; // one to one fields
     var many_to_one_fields = []; // many to one fields
 
-    idFactory = idFactory || redisIdFactory;
-    entityStore = entityStore || redisStorage;
+    idFactory = idFactory || redisIdFactory(redis);
+    entityStore = entityStore || redisStorage(redis);
 
     function convert(data) {
-        _.each(field_types, function(field, type) {
+        // TODO convert should clono data, else data will be change after save.
+        _.each(field_types, function(type, field) {
                 switch(type) {
                   case Date:
-                    data[field] = data[field].toISOString()
+                    if(data[field] instanceof Date)
+                        data[field] = data[field].toISOString();
                     break;
                   case Number:
                     break;
@@ -134,6 +125,26 @@ function RedisModel(model_name, _redis, idFactory, entityStore) {
         })
         return data;
     }
+
+    function listIdByScore(key, rev, suffix, offset, limit, min, max, callback) {
+        if(!callback) {
+            if(typeof max == 'function') {
+                callback = max;
+                max = null;
+            } else if(typeof min == 'function') {
+                callback = min;
+                min = null;
+            }
+        }
+        if(min || max) {
+            if(!max) max = '+inf';
+            if(!min) min = '-inf';
+            redis[rev ? 'zrevrangebyscore' : 'zrangebyscore'](key + suffix, min, max, 'LIMIT', offset, limit, callback);
+        } else {
+            redis[rev ? 'zrevrange' : 'zrange'](key + suffix, offset, offset + limit, callback);
+        }
+    }
+
     function listByScore(key, rev, suffix, offset, limit, min, max, callback) {
         if(!callback) {
             if(typeof max == 'function') {
@@ -169,6 +180,7 @@ function RedisModel(model_name, _redis, idFactory, entityStore) {
                 model_fields.push([field, type]);
             }
             field_types[field] = type;
+            return model;
         }
       , index: function(field) {
             index_fields.push(field);
@@ -179,6 +191,7 @@ function RedisModel(model_name, _redis, idFactory, entityStore) {
             model['rlist_of_' + field] = listByScore.bind(list_key, 'reverse', '');
             model['full_of_' + field] = listFullByScore.bind(list_key, false, '');
             model['rfull_of_' + field] = listFullByScore.bind(list_key, 'reverse', '');
+            return model;
         }
       , unique: function(field) {
             unique_fields.push(field);
@@ -194,6 +207,7 @@ function RedisModel(model_name, _redis, idFactory, entityStore) {
                         model.get_full(id, callback);
                 })
             }
+            return model;
         }
       , many_to_one: function(field, type) {
             type && model.type(field, type);
@@ -207,6 +221,7 @@ function RedisModel(model_name, _redis, idFactory, entityStore) {
             model['rlist_of_' + field] = listByScore.bind(list_prefix, 'reverse');
             model['full_of_' + field] = listFullByScore.bind(list_prefix, false);
             model['rfull_of_' + field] = listFullByScore.bind(list_prefix, 'reverse');
+            return model;
         }
       , many_to_many: function(field1, field2) {
             var type1 = field_types[field1];
@@ -219,8 +234,9 @@ function RedisModel(model_name, _redis, idFactory, entityStore) {
             // post.list_comment_user
             // user.list_comment_post
             // TODO handle save, handle find
-            var prefix1 = model_name + '/' + ....
+            var prefix1 = model_name + '/' + field2 + '|' + field1 + ':';
             model1['list_' + model_name + '_' + field2] = listIdByScore.bind()
+            return model;
         }
         // creaet, update, save
       , _save: function(data, callback) {
@@ -240,25 +256,31 @@ function RedisModel(model_name, _redis, idFactory, entityStore) {
             entityStore.set(model_name, data.id, convert(data), callback);
         }
       , insert: function(data, callback) {
+            console.log('insert', data);
             if(data.id) throw new Error('model id already exists')
-            idFactory(function(err, id) {
+            idFactory(model_name, function(err, id) {
+                    console.log('id', id);
                     if(err) return callback(err);
-                    var key = model.key(id);
-                    redis.exists(key, function(err, exists) {
+                    entityStore.exists(model_name, id, function(err, exists) {
                             if(err) return callback(err);
                             // insert again if exists
                             if(exists) return model.insert(data, callback);
                             data.id = id;
                             data.create_at = new Date();
-                            model._save(data, callback);
+                            model._save(data, function(err, results) {
+                                    callback(err, data);
+                            });
                     });
             })
         }
       , update: function(data, callback) {
             data.update_at = new Date();
-            model._save(data, callback);
+            model._save(data, function(err, results) {
+                    callback(err, data);
+            });
         }
       , save: function(data, callback) {
+            console.log('save', data);
             if(data.id) {
                 model.update(data, callback);
             } else {
@@ -273,15 +295,18 @@ function RedisModel(model_name, _redis, idFactory, entityStore) {
             entityStore.get(model_name, id, _.fapply(callback, revert));
         }
       , get_full: function (id, callback) {
-            this.get(id, function(err, results) {
+            this.get(id, function(err, data) {
                     // TODO remove async, use dash5
                     async.map(model_fields, function(fieldAndType, emit) {
                             // model
-                            var field_id = results[fieldAndType[0] + '_id'];
+                            var field_id = data[fieldAndType[0] + '_id'];
                             var field_model = all_models[fieldAndType[1]];
                             field_id && field_model ? field_model.get(field_id, emit) : emit();
                         }, function(err, results) {
-                            callback(err, results && _.zipObject(model_fields, results));
+                            _.each(model_fields, function(fieldAndType, i) {
+                                    data[fieldAndType[0]] = results[i];
+                            })
+                            callback(err, data);
                     });
             });
         }
@@ -299,22 +324,4 @@ RedisModel.getModel = function(model_name) {
     return all_models[model_name];
 }
 
-var groupModel = RedisModel('group')
-  .type('owner', 'user')
-  .many_to_one('owner')
-  .many_to_many()
-  .index('create_at')
-  ;
-
-// also retrival typed field
-groupModel.get(id);
-list_index
-list_many_to_one
-list_many_to_many
-remove
-remove_by_create_at
-remove_by_owner
-// auto bind methods
-groupModel.list_by_create_at(create_at, min, max)
-groupModel.list_by_owner(owner_id);
-groupModel.list_by_owner(owner_id);
+var exports = module.exports = RedisModel;

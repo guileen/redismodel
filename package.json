@@ -20,5 +20,9 @@
   "bugs": {
     "url": "https://github.com/guileen/redis-model/issues"
   },
-  "homepage": "https://github.com/guileen/redis-model"
+  "homepage": "https://github.com/guileen/redis-model",
+  "dependencies": {
+    "redis": "~0.10.1",
+    "async": "~0.2.10"
+  }
 }
