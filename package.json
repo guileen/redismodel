@@ -23,6 +23,24 @@
   "homepage": "https://github.com/guileen/redis-model",
   "dependencies": {
     "redis": "~0.10.1",
-    "async": "~0.2.10"
+    "async": "~0.2.10",
+    "murmurhash3": "~0.2.3",
+    "crc": "~0.2.1"
+  },
+  "devDependencies": {
+    "blanket": "~1.1.6",
+    "mocha": "~1.17.1"
+  },
+  "config": {
+    "blanket": {
+      "pattern": "",
+      "data-cover-never": [
+        "node_modules",
+        "test"
+      ],
+      "data-cover-reporter-options": {
+        "shortnames": true
+      }
+    }
   }
 }
