@@ -23,7 +23,6 @@ var User = redisit('user', {
           , password: {
                 required: true
               , verify: function(value) {
-
                 }
             }
           , avatar: {
@@ -32,7 +31,8 @@ var User = redisit('user', {
           , invitor: {
                 type: 'model'
               , model: 'user'
-              , many_to_one: 'user' // save sorted set
+              , reverse: null // null, 'set', 'zset', 'list'
+              // , many_to_one: 'user' // save sorted set
             }
         }
       , indices: [
