@@ -1,9 +1,9 @@
 var config = require('../config');
-var redisit = require('../../redis_model');
+var redisit = require('../../');
 
 var User = redisit('user', {
         entityStore: redisit.entityStore
-      , redis: require('redis').createClient();
+      , redis: require('redis').createClient()
       , fields: {
             id: {
                 'default': function() {
@@ -40,10 +40,12 @@ var User = redisit('user', {
         ]
 });
 
-User.on('insert', function(user) {
+var exports = module.exports = User;
 
-})
+// User.on('insert', function(user) {
 
-User.on('update', function(user) {
+// })
 
-})
+// User.on('update', function(user) {
+
+// })

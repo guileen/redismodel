@@ -1,6 +1,4 @@
-var RedisModel = require('../redis_model');
-var redisClient = require('redis').createClient();
-
+/*
 var userModel = RedisModel('user', redisClient)
   .unique('email')
   .unique('username')
@@ -30,23 +28,49 @@ groupModel.save({creator_id: 5, name: 'xxx'}, function(err, info) {
                 console.log('getfull group', results);
         })
 })
+*/
 
-// var groupModel = RedisModel('group')
-//   .type('owner', 'user')
-//   .many_to_one('owner')
-//   .many_to_many()
-//   .index('create_at')
-//   ;
+var should = require('should');
+var User = require('./models/User');
+var redis = require('redis').createClient();
 
-// // also retrival typed field
-// groupModel.get(id);
-// list_index
-// list_many_to_one
-// list_many_to_many
-// remove
-// remove_by_create_at
-// remove_by_owner
-// // auto bind methods
-// groupModel.list_by_create_at(create_at, min, max)
-// groupModel.list_by_owner(owner_id);
-// groupModel.list_by_owner(owner_id);
+function shouldExists(keys, callback) {
+    async.map(keys, redis.exists, function(err, results) {
+            if(err) callback(err);
+            for (var i = 0, l = keys.length; i < l; i ++) {
+                var k = keys[i];
+                var ex = results[i];
+                if(!ex) {
+                    return callback(new Error('not exist ' + k));
+                }
+            }
+
+    });
+}
+
+describe('Model', function() {
+
+        describe('verify', function() {
+                it('should verify require fields', function(done) {
+                        User.save({
+                                password: '123456'
+                              , email: 'gl@gl.com'
+                            }, function(err) {
+                                should.exists(err);
+                                done();
+                        })
+                })
+        })
+
+        it('should save and create keys', function(done) {
+                User.save({
+                        username: 'gl'
+                      , password: '123456'
+                      , email: 'gl@gl.com'
+                    }, function(err, data) {
+                        should.exists(data.id);
+                        should.not.exists(err);
+                        shouldExists(['user+username:gl'], done);
+                });
+        })
+})
