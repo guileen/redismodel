@@ -34,20 +34,18 @@ var should = require('should');
 var User = require('./models/User');
 var redis = require('redis').createClient();
 var async = require('async');
+var util = require('../lib/util');
 
 function shouldExists(keys, callback) {
-    async.map(keys, redis.exists.bind(redis), function(err, results) {
-            if(err) callback(err);
-            for (var i = 0, l = keys.length; i < l; i ++) {
-                var k = keys[i];
-                var ex = results[i];
-                if(!ex) {
-                    return callback(new Error('not exist ' + k));
-                }
-            }
-
-    });
+    util.existKeys(redis, keys, function(err, existKeys) {
+            existKeys.length.should.eql(keys.length);
+            callback(err);
+    })
 }
+
+before(function(done) {
+        redis.flushdb(done);
+})
 
 describe('Model', function() {
 
@@ -69,9 +67,20 @@ describe('Model', function() {
                       , password: '123456'
                       , email: 'gl@gl.com'
                     }, function(err, data) {
-                        should.exists(data.id);
                         should.not.exists(err);
-                        shouldExists(['user+username:gl'], done);
+                        should.exists(data.id);
+                        shouldExists([['user<-username', 'gl'], ['user<-email', 'gl@gl.com']], done);
+                });
+        })
+
+        it('should not save duplicate value', function(done) {
+                User.save({
+                        username: 'gl'
+                      , password: '123456'
+                      , email: 'gl@gl.com'
+                    }, function(err, data) {
+                        should.exists(err);
+                        done();
                 });
         })
 })
