@@ -33,9 +33,10 @@ groupModel.save({creator_id: 5, name: 'xxx'}, function(err, info) {
 var should = require('should');
 var User = require('./models/User');
 var redis = require('redis').createClient();
+var async = require('async');
 
 function shouldExists(keys, callback) {
-    async.map(keys, redis.exists, function(err, results) {
+    async.map(keys, redis.exists.bind(redis), function(err, results) {
             if(err) callback(err);
             for (var i = 0, l = keys.length; i < l; i ++) {
                 var k = keys[i];

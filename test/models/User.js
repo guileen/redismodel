@@ -1,7 +1,7 @@
 var config = require('../config');
-var redisit = require('../../');
+var redisit = require('../../lib/model');
 
-var User = redisit('user', {
+var User = redisit.makeModel('user', {
         entityStore: redisit.entityStore
       , redis: require('redis').createClient()
       , fields: {
