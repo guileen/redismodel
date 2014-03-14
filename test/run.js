@@ -69,7 +69,7 @@ describe('Model', function() {
                     }, function(err, data) {
                         should.not.exists(err);
                         should.exists(data.id);
-                        shouldExists([['user<-username', 'gl'], ['user<-email', 'gl@gl.com']], done);
+                        shouldExists(['user+create_at', ['user<-username', 'gl'], ['user<-email', 'gl@gl.com']], done);
                 });
         })
 
@@ -83,4 +83,22 @@ describe('Model', function() {
                         done();
                 });
         })
-})
+
+        it('should get user', function(done) {
+                User.by.username('gl', function(err, info) {
+                        should.not.exists(err);
+                        should.exists(info);
+                        should.exists(info.id);
+                        info.username.should.eql('gl');
+                        info.email.should.eql('gl@gl.com');
+                        done();
+                })
+        })
+
+        it('should fetch list of user', function(done) {
+                User.fetch.zrange('user+create_at', 0, -1, function(err, users) {
+                        console.log(users);
+                        done();
+                })
+        })
+});

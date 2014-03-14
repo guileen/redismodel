@@ -31,6 +31,7 @@ var User = redisit.makeModel('user', {
           , invitor: {
                 type: 'model'
               , model: 'user'
+                // reverse 反向列表。User.of.invitor('gl', [offset, [limit]], fn(err, [all user invited by gl])
               , reverse: null // null, 'set', 'zset', 'list'
               // , many_to_one: 'user' // save sorted set
             }
