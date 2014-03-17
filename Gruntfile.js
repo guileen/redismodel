@@ -5,7 +5,7 @@ module.exports = function(grunt) {
                 src: ['coverage.html']
             }
           , jshint: {
-              , src: {
+                src: {
                     options: {
                         jshintrc: '.jshintrc'
                     }
@@ -15,7 +15,15 @@ module.exports = function(grunt) {
           , watch: {
                 jshint: {
                     files: '<%= jshint.src.src %>'
-                    tasks: ['jshint:src']
+                  , tasks: ['jshint:src']
+                }
+            }
+          , mochaTest: {
+                test: {
+                    options: {
+                        reporter: 'spec'
+                    }
+                  , src: ['test/**/*.js']
                 }
             }
     });
@@ -23,6 +31,7 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-contrib-clean');
     grunt.loadNpmTasks('grunt-contrib-jshint');
     grunt.loadNpmTasks('grunt-contrib-watch');
+    grunt.loadNpmTasks('grunt-mocha-test');
 
-    grunt.registerTask('default', ['cleant', 'jshint', 'watch'])
+    grunt.registerTask('default', ['clean', 'jshint', 'watch'])
 }

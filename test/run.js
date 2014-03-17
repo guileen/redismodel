@@ -29,7 +29,10 @@ groupModel.save({creator_id: 5, name: 'xxx'}, function(err, info) {
         })
 })
 */
-
+// require('blanket')({
+//         pattern: '*'
+//       , 'data-cover-never': ['node_modules', 'test']
+// });
 var should = require('should');
 var User = require('./models/User');
 var redis = require('redis').createClient();
