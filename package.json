@@ -1,5 +1,5 @@
 {
-  "name": "redisit",
+  "name": "redismodel",
   "version": "0.1.0",
   "description": "A model framework for redis",
   "main": "lib/redismodel.js",
@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/guileen/redis-model.git"
+    "url": "git://github.com/guileen/redismodel.git"
   },
   "keywords": [
     "redis",
@@ -18,20 +18,19 @@
   "author": "Gui Lin <guileen@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/guileen/redis-model/issues"
+    "url": "https://github.com/guileen/redismodel/issues"
   },
-  "homepage": "https://github.com/guileen/redis-model",
+  "homepage": "https://github.com/guileen/redismodel",
   "dependencies": {
+    "co": "^3.1.0",
     "formconv": "0.0.5",
+    "co-redis": "^1.1.0",
     "redis": "^0.12.1"
   },
   "devDependencies": {
     "blanket": "~1.1.6",
-    "co": "^3.1.0",
-    "co-redis": "^1.1.0",
     "expect.js": "^0.3.1",
-    "mocha": "~1.17.1",
-    "should": "~3.1.3"
+    "mocha": "~1.17.1"
   },
   "config": {
     "blanket": {
