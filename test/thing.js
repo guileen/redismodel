@@ -87,7 +87,7 @@ describe('thing', function() {
             for(var i=0;i<50;i++) {
               yield Thing.insert({name:'name', int:i})
             }
-            yield Thing.ensureIndex('int')
+            Thing.ensureIndex('int')
             var things
             things = yield Thing.range(10, 0)
             expect(things.length).to.eql(10)
