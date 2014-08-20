@@ -21,11 +21,16 @@ before(function*() {
           id: 'int',
           type: String,
           int: 'int',
+          color: String,
           owner: String
         },
         indices: [],
         unique: [],
-        client: client
+        maxIndexLen: 25,
+        client: client,
+        hash: function defaultHash(str) {
+          return require('crypto').createHash('md5').update(str).digest("hex").substring(0, 16)
+        }
     })
 
     function log(str){}
@@ -90,11 +95,13 @@ describe('thing', function() {
         before(function*() {
             var types = ['dog', 'cat', 'pig']
             var owners = ['jack', 'tom']
+            var colors = ['blue', 'red', 'orange', 'black', 'white']
             for(var i=0;i<60;i++) {
               yield Thing.insert({
                   name:'name',
                   age:i,
                   type: types[i % types.length],
+                  color: colors[i % colors.length],
                   owner: owners[i % owners.length]
               })
             }
@@ -152,8 +159,8 @@ describe('thing', function() {
         })
 
         it('should find with multi subset with hash', function*() {
-            things = yield Thing.range({type: 'cat', owner: 'tom', color: 'white'}, 100, 0)
-            expect(things.length).to.eql(0)
+            things = yield Thing.range({type: 'cat', owner: 'tom', color: 'black'}, 100, 0)
+            expect(things.length).to.eql(2)
         })
     })
 })
