@@ -1,107 +1,159 @@
 var co = require('co')
 var expect = require('expect.js')
+var util = require('./util')
 
 var redismodel = require('../lib/redismodel')
 var client = require('./client')
 
-before(function(done) {
-    client.flushdb(done)
+var before = util.cobefore
+var it = util.coit
+var after = util.coafter
+var Thing
+
+before(function*() {
+    yield function(cb) {
+      client.flushdb(cb)
+    }
+
+    // name, scheme, index fields
+    Thing = redismodel('thing', {
+        scheme: {
+          id: 'int',
+          type: String,
+          int: 'int',
+          owner: String
+        },
+        indices: [],
+        unique: [],
+        client: client
+    })
+
+    function log(str){}
+
+    Thing.idFactory = function*() {
+
+    }
+
+    Thing.onBeforeInsert = function*() {
+      log('inserting')
+    }
+    Thing.onBeforeUpdate = function*() {
+      log('updating')
+    }
+    Thing.onBeforeSave = function*() {
+      log('saving')
+    }
+    Thing.onInsert = function*() {
+      log('insert')
+    }
+    Thing.onUpdate = function*() {
+      log('update')
+    }
+    Thing.onSave = function*() {
+      log('save')
+    }
+
 })
-
-// name, scheme, index fields
-var Thing = redismodel('thing', {
-    scheme: {
-      id: 'int'
-    },
-    indices: [],
-    unique: [],
-    client: client
-})
-
-function log(str){}
-
-Thing.idFactory = function*() {
-
-}
-
-Thing.onBeforeInsert = function*() {
-  log('inserting')
-}
-Thing.onBeforeUpdate = function*() {
-  log('updating')
-}
-Thing.onBeforeSave = function*() {
-  log('saving')
-}
-Thing.onInsert = function*() {
-  log('insert')
-}
-Thing.onUpdate = function*() {
-  log('update')
-}
-Thing.onSave = function*() {
-  log('save')
-}
 
 describe('thing', function() {
     var id
-    it('should save thing', function(done) {
-        co(function*() {
+    it('should save thing', function*() {
             var thing = yield Thing.insert({name: 'myname', int: 9})
             expect(thing.id).to.be.ok()
             expect(thing.name).to.eql('myname')
             expect(thing.int).to.eql(9)
             id = thing.id
-        })(done)
     })
 
-    it('should get thing', function(done) {
-        co(function*() {
+    it('should get thing', function*() {
             var thing = yield Thing.get(id)
             expect(thing.id).to.be.ok()
             expect(thing.name).to.eql('myname')
             expect(thing.int).to.eql(9)
-        })(done)
     })
 
-    it('should update thing', function(done) {
-        co(function*() {
+    it('should update thing', function*() {
             yield Thing.update(id, {name:'name2', int:8})
             var thing = yield Thing.get(id)
             expect(thing.id).to.be.ok()
             expect(thing.name).to.eql('name2')
             expect(thing.int).to.eql(8)
-        })(done)
     })
 
-    it('should remove thing', function(done) {
-        co(function*() {
+    it('should remove thing', function*() {
             yield Thing.remove(id)
             var thing = yield Thing.get(id)
             expect(thing).to.be.null
-        })(done)
     })
-
-    it('should filter range things', function(done) {
-        co(function*() {
-            for(var i=0;i<50;i++) {
-              yield Thing.insert({name:'name', int:i})
+    describe('index', function() {
+        var things
+        before(function*() {
+            var types = ['dog', 'cat', 'pig']
+            var owners = ['jack', 'tom']
+            for(var i=0;i<60;i++) {
+              yield Thing.insert({
+                  name:'name',
+                  age:i,
+                  type: types[i % types.length],
+                  owner: owners[i % owners.length]
+              })
             }
-            Thing.ensureIndex('int')
-            var things
-            things = yield Thing.range(10, 0)
-            expect(things.length).to.eql(10)
+        })
+        it('could filter default range', function*() {
+            things = yield Thing.range(100, 0)
+            expect(things.length).to.eql(60)
+        })
 
-            things = yield Thing.range(10, 50)
+        it('should be empty when out of range', function*() {
+            things = yield Thing.range(100, 61)
+            expect(things.length).to.eql(0)
+        })
+
+        it('should ensureIndex dynamic', function*() {
+            yield Thing._ensureIndex('age')
+        })
+
+        it('should range with index', function*() {
+            things = yield Thing.range(50, 0, {age: -1}, [50, 100])
             expect(things.length).to.eql(0)
 
-            things = yield Thing.range(50, 0, {int: -1}, [50, 100])
-            expect(things.length).to.eql(0)
-
-            things = yield Thing.range(20, 5, {int: -1}, [20, 0])
+            things = yield Thing.range(20, 5, {age: -1}, [20, 0])
             expect(things.length).to.eql(16)
-            expect(things[0].int).to.eql(15)
-            expect(things[15].int).to.eql(0)
-        })(done)
+            expect(things[0].age).to.eql(15)
+            expect(things[15].age).to.eql(0)
+        })
+
+        it('should throw error without index', function*() {
+            // TODO
+        })
+
+        it('should ensureIndex with one subset', function*() {
+            yield Thing._ensureIndex(['createTime', ['type']])
+        })
+
+        it('should find with one subset', function*() {
+            things = yield Thing.range({type: 'cat'}, 100, 0)
+            expect(things.length).to.eql(20)
+            things = yield Thing.range({type: 'cat'}, 100, 21)
+            expect(things.length).to.eql(0)
+        })
+
+        it('should ensureIndex with multi subset', function*() {
+            yield Thing._ensureIndex(['createTime', ['type', 'owner']])
+        })
+
+        it('should find with multi subset', function*() {
+            things = yield Thing.range({type: 'cat', owner: 'tom'}, 100, 0)
+            expect(things.length).to.eql(10)
+        })
+
+        it('should ensureIndex with multi subset with hash', function*() {
+            yield Thing._ensureIndex(['createTime', ['type', 'owner', 'color'], true])
+        })
+
+        it('should find with multi subset with hash', function*() {
+            things = yield Thing.range({type: 'cat', owner: 'tom', color: 'white'}, 100, 0)
+            expect(things.length).to.eql(0)
+        })
     })
 })
