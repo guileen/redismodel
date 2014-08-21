@@ -90,6 +90,26 @@ describe('thing', function() {
             var thing = yield Thing.get(id)
             expect(thing).to.be.null
     })
+
+    it('should insert object with id', function*() {
+        var thing = yield Thing.insert({id: 'abc', name: 'myname3', int: 11})
+        thing = yield Thing.get('abc')
+        expect(thing.id).to.eql('abc')
+        expect(thing.name).to.eql('myname3')
+    })
+
+    it('should not insert object with duplicate id', function*() {
+        try{
+          var thing = yield Thing.insert({id: 'abc', name: 'myname4', int: 11})
+          expect().fail('should throw error for duplicate id')
+        } catch(e) {
+        }
+        thing = yield Thing.get('abc')
+        expect(thing.id).to.eql('abc')
+        expect(thing.name).to.eql('myname3')
+        yield Thing.remove(thing.id)
+    })
+
     describe('index', function() {
         var things
         before(function*() {
