@@ -107,7 +107,7 @@ describe('thing', function() {
             }
         })
         it('could filter default range', function*() {
-            things = yield Thing.range(100, 0)
+            things = yield Thing.range(100)
             expect(things.length).to.eql(60)
         })
 
